@@ -1,11 +1,13 @@
 import discord
 import os
+from webserver import keep_alive
 from discord.ext import commands
 from discord.utils import get
 from dotenv import load_dotenv
 
 
 load_dotenv()
+keep_alive()
 token = os.getenv('BOT_TOKEN')
 
 prefix = '/'
@@ -21,6 +23,11 @@ async def ping(ctx):
 
 allowed_roles_clear = []
 
+
+@bot.command()
+async def clear_roles(ctx):
+    await ctx.reply(allowed_roles_clear)
+  
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -45,10 +52,9 @@ async def remove_allowed_role(ctx, role: discord.Role):
 @bot.command()
 async def clean(ctx, amount: int):
     if any(role in ctx.author.roles for role in allowed_roles_clear):
-        await ctx.send('Эта команда доступна только для участников с разрешенными ролями.')
         channel = ctx.channel
         await channel.purge(limit=amount + 1)
-    else:
+    else: 
         await ctx.send('У вас нет прав для выполнения этой команды.')
 
 
