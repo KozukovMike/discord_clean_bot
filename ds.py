@@ -25,7 +25,7 @@ allowed_roles_clear = []
 
 
 @bot.command()
-async def clear_roles(ctx):
+async def clean_roles(ctx):
     await ctx.reply(allowed_roles_clear)
   
 
@@ -50,10 +50,19 @@ async def remove_allowed_role(ctx, role: discord.Role):
 
 
 @bot.command()
-async def clean(ctx, amount: int):
+async def clean(ctx, amount: int, channel: discord.TextChannel = None, target: discord.Member = None):
     if any(role in ctx.author.roles for role in allowed_roles_clear):
-        channel = ctx.channel
-        await channel.purge(limit=amount + 1)
+        if channel is None:
+            channel = ctx.channel
+
+        messages_to_delete = []
+        async for message in channel.history(limit=None):
+            if not target or message.author == target:
+                messages_to_delete.append(message)
+                if len(messages_to_delete) == amount:
+                    break
+
+        await channel.delete_messages(messages_to_delete)
     else: 
         await ctx.send('У вас нет прав для выполнения этой команды.')
 
