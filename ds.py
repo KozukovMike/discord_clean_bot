@@ -1,9 +1,9 @@
 import discord
 import os
 from webserver import keep_alive
-from discord.ext import commands
-from discord.utils import get
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
+from asyncio import sleep
 
 
 load_dotenv()
@@ -14,45 +14,58 @@ prefix = '/'
 intends = discord.Intents().all()
 bot = commands.Bot(command_prefix=prefix, intents=intends)
 
-
-@bot.command()
-async def ping(ctx):
-    await ctx.reply('pong')
-    await ctx.send('ping')
-
-
 allowed_roles_clear = []
 
 
-@bot.command()
-async def clean_roles(ctx):
-    await ctx.reply(allowed_roles_clear)
-  
+@bot.event
+async def on_ready():
+    # bot.change_presence(status=discord.Status.online)
+    await bot.tree.sync()
+    print(f'We have logged in as {bot.user}')
 
-@bot.command()
+
+@bot.tree.command(name="ping", description="ping-pong")
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message(content='pong')
+    await sleep(3)
+    await interaction.channel.purge(limit=1)
+
+
+@bot.command(name="clean_roles", description="get the list of cleaning roles")
+async def clean_roles(interaction: discord.Interaction):
+    await interaction.send(allowed_roles_clear)
+    await sleep(3)
+    await interaction.channel.purge(limit=1)
+
+
+@bot.tree.command(name="add_clean_role", description="add the cleaning role to the list")
 @commands.has_permissions(administrator=True)
-async def add_allowed_role(ctx, role: discord.Role):
+async def add_allowed_role(interaction: discord.Interaction, role: discord.Role):
     if role not in allowed_roles_clear:
         allowed_roles_clear.append(role)
-        await ctx.send(f'Роль "{role.name}" добавлена в список разрешенных ролей для бота.')
+        await interaction.response.send_message(content=f'Роль "{role.name}" добавлена в список разрешенных ролей для бота.')
     else:
-        await ctx.send(f'Роль "{role.name}" уже присутствует в списке разрешенных ролей.')
+        await interaction.response.send_message(content=f'Роль "{role.name}" уже присутствует в списке разрешенных ролей.')
+    await sleep(3)
+    await interaction.channel.purge(limit=1)
 
 
-@bot.command()
+@bot.tree.command(name="remove_clean_role", description="remove the cleaning role from the list")
 @commands.has_permissions(administrator=True)
-async def remove_allowed_role(ctx, role: discord.Role):
+async def remove_allowed_role(interaction: discord.Interaction, role: discord.Role):
     if role in allowed_roles_clear:
         allowed_roles_clear.remove(role)
-        await ctx.send(f'Роль "{role.name}" удалена из списка разрешенных ролей для бота.')
+        await interaction.response.send_message(content=f'Роль "{role.name}" удалена из списка разрешенных ролей для бота.')
     else:
-        await ctx.send(f'Роль "{role.name}" не найдена в списке разрешенных ролей.')
+        await interaction.response.send_message(content=f'Роль "{role.name}" не найдена в списке разрешенных ролей.')
+    await sleep(3)
+    await interaction.channel.purge(limit=1)
 
 
-@bot.command()
-async def clean(ctx, amount: int, channel: discord.TextChannel = None, target: discord.Member = None):
-    current_channel = ctx.channel
-    if any(role in ctx.author.roles for role in allowed_roles_clear):
+@bot.tree.command(name="clean", description="clean")
+async def clean(interaction: discord.Interaction, amount: int, channel: discord.TextChannel = None, target: discord.Member = None):
+    current_channel = interaction.channel
+    if any(role in interaction.guild.roles for role in allowed_roles_clear):
         if not channel:
             channel = current_channel
 
@@ -62,11 +75,9 @@ async def clean(ctx, amount: int, channel: discord.TextChannel = None, target: d
                 messages_to_delete.append(message)
                 if len(messages_to_delete) == amount:
                     break
-
         await channel.delete_messages(messages_to_delete)
-        await current_channel.purge(limit=1)
-    else: 
-        await ctx.send('У вас нет прав для выполнения этой команды.')
+    else:
+        await interaction.response.send_message(content='У вас нет прав для выполнения этой команды.')
 
 
 bot.run(token)
